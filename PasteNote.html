@@ -28,7 +28,7 @@
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             padding: 40px;
             width: 100%;
-            max-width: 500px;
+            max-width: 550px;
             position: relative;
             overflow: hidden;
             transition: transform 0.3s ease;
@@ -66,7 +66,7 @@
         }
 
         .form-group {
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
 
         .form-group label {
@@ -99,6 +99,51 @@
 
         .input-wrapper input:hover {
             border-color: #d1d5db;
+        }
+
+        .account-section {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .account-section h3 {
+            color: #334155;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .account-section h3::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 2px;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 4px;
+            border-radius: 4px;
+            transition: color 0.2s ease;
+        }
+
+        .password-toggle:hover {
+            color: #374151;
         }
 
         .submit-btn {
@@ -212,6 +257,7 @@
             .container {
                 padding: 30px 20px;
                 margin: 10px;
+                max-width: 90%;
             }
             
             .header h1 {
@@ -220,6 +266,10 @@
             
             .container.sidebar-open {
                 transform: translateX(-100px);
+            }
+
+            .account-section {
+                padding: 20px;
             }
         }
 
@@ -446,17 +496,37 @@
         </div>
         
         <form id="copyForm">
-            <div class="form-group">
-                <label for="originAccount">源账号</label>
-                <div class="input-wrapper">
-                    <input type="text" id="originAccount" name="originAccount" placeholder="请输入源账号用户名" required>
+            <div class="account-section">
+                <h3>源账号信息</h3>
+                <div class="form-group">
+                    <label for="originAccount">用户名</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="originAccount" name="originAccount" placeholder="请输入源账号用户名" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="originPassword">密码</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="originPassword" name="originPassword" placeholder="请输入源账号密码" required>
+                        <button type="button" class="password-toggle" onclick="togglePassword('originPassword')">👁️</button>
+                    </div>
                 </div>
             </div>
-            
-            <div class="form-group">
-                <label for="targetAccount">目标账号</label>
-                <div class="input-wrapper">
-                    <input type="text" id="targetAccount" name="targetAccount" placeholder="请输入目标账号用户名" required>
+
+            <div class="account-section">
+                <h3>目标账号信息</h3>
+                <div class="form-group">
+                    <label for="targetAccount">用户名</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="targetAccount" name="targetAccount" placeholder="请输入目标账号用户名" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="targetPassword">密码</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="targetPassword" name="targetPassword" placeholder="请输入目标账号密码" required>
+                        <button type="button" class="password-toggle" onclick="togglePassword('targetPassword')">👁️</button>
+                    </div>
                 </div>
             </div>
             
@@ -526,7 +596,9 @@
         const progressBar = document.getElementById('progressBar');
         const progressFill = document.getElementById('progressFill');
         const originAccountInput = document.getElementById('originAccount');
+        const originPasswordInput = document.getElementById('originPassword');
         const targetAccountInput = document.getElementById('targetAccount');
+        const targetPasswordInput = document.getElementById('targetPassword');
         const container = document.querySelector('.container');
         
         // 历史记录相关DOM元素
@@ -538,6 +610,20 @@
         const totalCount = document.getElementById('totalCount');
         const successCount = document.getElementById('successCount');
         const failureCount = document.getElementById('failureCount');
+
+        // ==================== 密码显示/隐藏功能 ====================
+        function togglePassword(inputId) {
+            const passwordInput = document.getElementById(inputId);
+            const toggleBtn = passwordInput.nextElementSibling;
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleBtn.textContent = '🙈';
+            } else {
+                passwordInput.type = 'password';
+                toggleBtn.textContent = '👁️';
+            }
+        }
 
         // ==================== 状态显示相关函数 ====================
         function showStatus(type, message) {
@@ -620,13 +706,17 @@
 
         // ==================== Python通信接口定义 ====================
         window.OriginAccount = null;
+        window.OriginPassword = null;
         window.TargetAccount = null;
+        window.TargetPassword = null;
         window.isSuccess = null;
 
         // ==================== Python通信相关函数 ====================
-        function sendToPython(originAccount, targetAccount) {
+        function sendToPython(originAccount, originPassword, targetAccount, targetPassword) {
             window.OriginAccount = originAccount;
+            window.OriginPassword = originPassword;
             window.TargetAccount = targetAccount;
+            window.TargetPassword = targetPassword;
             
             console.log('发送到Python:', { originAccount, targetAccount });
             
@@ -650,16 +740,22 @@
             
             if (window.isSuccess === true) {
                 showStatus('success', '✅ 笔记复制成功！');
+                // 清空所有输入框
                 originAccountInput.value = '';
+                originPasswordInput.value = '';
                 targetAccountInput.value = '';
+                targetPasswordInput.value = '';
                 addToHistory(originAccount, targetAccount, 'success');
             } else if (window.isSuccess === false) {
-                showStatus('error', '❌ 复制失败，请检查账号信息是否正确');
+                showStatus('error', '❌ 复制失败，请检查账号信息和密码是否正确');
                 addToHistory(originAccount, targetAccount, 'error');
             }
             
+            // 清空敏感信息
             window.OriginAccount = null;
+            window.OriginPassword = null;
             window.TargetAccount = null;
+            window.TargetPassword = null;
             window.isSuccess = null;
             
             setTimeout(() => {
@@ -791,10 +887,12 @@
             e.preventDefault();
             
             const originAccount = originAccountInput.value.trim();
+            const originPassword = originPasswordInput.value.trim();
             const targetAccount = targetAccountInput.value.trim();
+            const targetPassword = targetPasswordInput.value.trim();
             
-            if (!originAccount || !targetAccount) {
-                showStatus('error', '❌ 请填写完整的账号信息');
+            if (!originAccount || !originPassword || !targetAccount || !targetPassword) {
+                showStatus('error', '❌ 请填写完整的账号信息和密码');
                 setTimeout(() => hideStatus(), 3000);
                 return;
             }
@@ -806,11 +904,11 @@
             }
             
             setButtonState(true);
-            showStatus('waiting', '<span class="loading-spinner"></span>正在复制笔记，请稍候...');
+            showStatus('waiting', '<span class="loading-spinner"></span>正在验证账号并复制笔记，请稍候...');
             
             currentTimeout = setTimeout(handleTimeout, TIMEOUT_DURATION);
             
-            sendToPython(originAccount, targetAccount);
+            sendToPython(originAccount, originPassword, targetAccount, targetPassword);
             checkPythonResponse();
         });
 
