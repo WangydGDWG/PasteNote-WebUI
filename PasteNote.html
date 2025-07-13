@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>跨账号复制笔记</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 500px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .container.sidebar-open {
+            transform: translateX(-150px);
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-wrapper input {
+            width: 100%;
+            padding: 16px 20px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: #fff;
+        }
+
+        .input-wrapper input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .input-wrapper input:hover {
+            border-color: #d1d5db;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-container {
+            margin-top: 24px;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            text-align: center;
+            opacity: 0;
+            transition: all 0.3s ease;
+            transform: translateY(10px);
+        }
+
+        .status-container.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .status-waiting {
+            background: linear-gradient(135deg, #fef3c7, #fbbf24);
+            color: #92400e;
+        }
+
+        .status-success {
+            background: linear-gradient(135deg, #d1fae5, #10b981);
+            color: #065f46;
+        }
+
+        .status-error {
+            background: linear-gradient(135deg, #fee2e2, #ef4444);
+            color: #991b1b;
+        }
+
+        .status-timeout {
+            background: linear-gradient(135deg, #fde4e7, #f56565);
+            color: #822727;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #92400e;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #e5e7eb;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .button-text {
+            transition: opacity 0.3s ease;
+        }
+
+        .button-loading {
+            opacity: 0.8;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 30px 20px;
+                margin: 10px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .container.sidebar-open {
+                transform: translateX(-100px);
+            }
+        }
+
+        /* 历史记录侧边栏样式 */
+        .history-sidebar {
+            position: fixed;
+            top: 0;
+            right: -350px;
+            width: 350px;
+            height: 100vh;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.1);
+            transition: right 0.3s ease;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .history-sidebar.open {
+            right: 0;
+        }
+
+        .history-header {
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 1001;
+        }
+
+        .history-header h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .history-close {
+            position: absolute;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s ease;
+        }
+
+        .history-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .history-content {
+            padding: 20px;
+        }
+
+        .history-item {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #e5e7eb;
+            transition: all 0.2s ease;
+        }
+
+        .history-item:hover {
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .history-item.success {
+            border-left-color: #10b981;
+        }
+
+        .history-item.error {
+            border-left-color: #ef4444;
+        }
+
+        .history-item.timeout {
+            border-left-color: #f59e0b;
+        }
+
+        .history-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .history-item-accounts {
+            font-size: 14px;
+            color: #374151;
+            font-weight: 500;
+        }
+
+        .history-item-time {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .history-item-status {
+            font-size: 13px;
+            font-weight: 500;
+            padding: 4px 8px;
+            border-radius: 6px;
+            display: inline-block;
+            margin-top: 4px;
+        }
+
+        .history-item-status.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .history-item-status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .history-item-status.timeout {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .history-toggle {
+            position: fixed;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 18px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            z-index: 999;
+        }
+
+        .history-toggle:hover {
+            transform: translateY(-50%) scale(1.1);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .history-empty {
+            text-align: center;
+            color: #6b7280;
+            padding: 40px 20px;
+            font-size: 14px;
+        }
+
+        .history-clear {
+            width: 100%;
+            padding: 12px;
+            background: #f3f4f6;
+            color: #374151;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 16px;
+            transition: background 0.2s ease;
+        }
+
+        .history-clear:hover {
+            background: #e5e7eb;
+        }
+
+        .history-stats {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .history-stats-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .history-stats-item:last-child {
+            margin-bottom: 0;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes ripple {
+            to {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>跨账号复制笔记</h1>
+            <p>安全高效地在不同账号间复制笔记</p>
+        </div>
+        
+        <form id="copyForm">
+            <div class="form-group">
+                <label for="originAccount">源账号</label>
+                <div class="input-wrapper">
+                    <input type="text" id="originAccount" name="originAccount" placeholder="请输入源账号用户名" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="targetAccount">目标账号</label>
+                <div class="input-wrapper">
+                    <input type="text" id="targetAccount" name="targetAccount" placeholder="请输入目标账号用户名" required>
+                </div>
+            </div>
+            
+            <button type="submit" class="submit-btn" id="submitBtn">
+                <span class="button-text">开始复制</span>
+            </button>
+        </form>
+        
+        <div class="status-container" id="statusContainer">
+            <div id="statusMessage"></div>
+            <div class="progress-bar" id="progressBar" style="display: none;">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 历史记录侧边栏 -->
+    <div class="history-sidebar" id="historySidebar">
+        <div class="history-header">
+            <h2>历史记录</h2>
+            <button class="history-close" id="historyClose">×</button>
+        </div>
+        <div class="history-content">
+            <div class="history-stats" id="historyStats">
+                <div class="history-stats-item">
+                    <span>总计:</span>
+                    <span id="totalCount">0</span>
+                </div>
+                <div class="history-stats-item">
+                    <span>成功:</span>
+                    <span id="successCount">0</span>
+                </div>
+                <div class="history-stats-item">
+                    <span>失败:</span>
+                    <span id="failureCount">0</span>
+                </div>
+            </div>
+            <div id="historyList">
+                <div class="history-empty">
+                    暂无历史记录
+                </div>
+            </div>
+            <button class="history-clear" id="historyClear">清空历史记录</button>
+        </div>
+    </div>
+
+    <!-- 历史记录切换按钮 -->
+    <button class="history-toggle" id="historyToggle">📋</button>
+
+    <script>
+        // ==================== 全局变量定义 ====================
+        let currentTimeout = null;
+        let progressInterval = null;
+        const TIMEOUT_DURATION = 30000;
+        let historyData = [];
+        let historyStats = {
+            total: 0,
+            success: 0,
+            failure: 0
+        };
+
+        // ==================== DOM元素引用 ====================
+        const form = document.getElementById('copyForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const statusContainer = document.getElementById('statusContainer');
+        const statusMessage = document.getElementById('statusMessage');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const originAccountInput = document.getElementById('originAccount');
+        const targetAccountInput = document.getElementById('targetAccount');
+        const container = document.querySelector('.container');
+        
+        // 历史记录相关DOM元素
+        const historySidebar = document.getElementById('historySidebar');
+        const historyToggle = document.getElementById('historyToggle');
+        const historyClose = document.getElementById('historyClose');
+        const historyList = document.getElementById('historyList');
+        const historyClear = document.getElementById('historyClear');
+        const totalCount = document.getElementById('totalCount');
+        const successCount = document.getElementById('successCount');
+        const failureCount = document.getElementById('failureCount');
+
+        // ==================== 状态显示相关函数 ====================
+        function showStatus(type, message) {
+            statusContainer.className = `status-container show status-${type}`;
+            statusMessage.innerHTML = message;
+            
+            if (type === 'waiting') {
+                progressBar.style.display = 'block';
+                startProgressAnimation();
+            } else {
+                progressBar.style.display = 'none';
+                stopProgressAnimation();
+            }
+        }
+
+        function hideStatus() {
+            statusContainer.classList.remove('show');
+            progressBar.style.display = 'none';
+            stopProgressAnimation();
+        }
+
+        // ==================== 进度条动画相关函数 ====================
+        function startProgressAnimation() {
+            let progress = 0;
+            progressInterval = setInterval(() => {
+                progress += 1;
+                if (progress <= 100) {
+                    progressFill.style.width = progress + '%';
+                }
+                if (progress >= 100) {
+                    progress = 0;
+                }
+            }, TIMEOUT_DURATION / 100);
+        }
+
+        function stopProgressAnimation() {
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+            progressFill.style.width = '0%';
+        }
+
+        // ==================== 按钮状态管理函数 ====================
+        function setButtonState(loading) {
+            if (loading) {
+                submitBtn.disabled = true;
+                submitBtn.classList.add('button-loading');
+                submitBtn.querySelector('.button-text').textContent = '复制中...';
+            } else {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('button-loading');
+                submitBtn.querySelector('.button-text').textContent = '开始复制';
+            }
+        }
+
+        // ==================== 清理和超时处理函数 ====================
+        function cleanup() {
+            if (currentTimeout) {
+                clearTimeout(currentTimeout);
+                currentTimeout = null;
+            }
+            setButtonState(false);
+            stopProgressAnimation();
+        }
+
+        function handleTimeout() {
+            const originAccount = originAccountInput.value.trim();
+            const targetAccount = targetAccountInput.value.trim();
+            
+            cleanup();
+            showStatus('timeout', '⏰ 操作超时，请检查网络连接或稍后重试');
+            
+            addToHistory(originAccount, targetAccount, 'timeout');
+            
+            setTimeout(() => {
+                hideStatus();
+            }, 5000);
+        }
+
+        // ==================== Python通信接口定义 ====================
+        window.OriginAccount = null;
+        window.TargetAccount = null;
+        window.isSuccess = null;
+
+        // ==================== Python通信相关函数 ====================
+        function sendToPython(originAccount, targetAccount) {
+            window.OriginAccount = originAccount;
+            window.TargetAccount = targetAccount;
+            
+            console.log('发送到Python:', { originAccount, targetAccount });
+            
+            // 模拟Python处理（实际使用时请删除这部分）
+            simulatePythonProcessing();
+        }
+
+        function simulatePythonProcessing() {
+            setTimeout(() => {
+                const success = Math.random() > 0.3;
+                window.isSuccess = success;
+                handlePythonResponse();
+            }, Math.random() * 3000 + 1000);
+        }
+
+        function handlePythonResponse() {
+            const originAccount = window.OriginAccount;
+            const targetAccount = window.TargetAccount;
+            
+            cleanup();
+            
+            if (window.isSuccess === true) {
+                showStatus('success', '✅ 笔记复制成功！');
+                originAccountInput.value = '';
+                targetAccountInput.value = '';
+                addToHistory(originAccount, targetAccount, 'success');
+            } else if (window.isSuccess === false) {
+                showStatus('error', '❌ 复制失败，请检查账号信息是否正确');
+                addToHistory(originAccount, targetAccount, 'error');
+            }
+            
+            window.OriginAccount = null;
+            window.TargetAccount = null;
+            window.isSuccess = null;
+            
+            setTimeout(() => {
+                hideStatus();
+            }, 5000);
+        }
+
+        function checkPythonResponse() {
+            const checkInterval = setInterval(() => {
+                if (window.isSuccess !== null) {
+                    clearInterval(checkInterval);
+                    handlePythonResponse();
+                }
+            }, 100);
+            
+            setTimeout(() => {
+                clearInterval(checkInterval);
+            }, TIMEOUT_DURATION);
+        }
+
+        // ==================== 历史记录管理函数 ====================
+        function addToHistory(originAccount, targetAccount, status) {
+            const now = new Date();
+            const historyItem = {
+                id: Date.now(),
+                originAccount,
+                targetAccount,
+                status,
+                timestamp: now.toISOString(),
+                displayTime: formatTime(now)
+            };
+            
+            historyData.unshift(historyItem);
+            
+            if (historyData.length > 100) {
+                historyData = historyData.slice(0, 100);
+            }
+            
+            updateHistoryStats();
+            renderHistoryList();
+        }
+
+        function updateHistoryStats() {
+            historyStats.total = historyData.length;
+            historyStats.success = historyData.filter(item => item.status === 'success').length;
+            historyStats.failure = historyStats.total - historyStats.success;
+            
+            totalCount.textContent = historyStats.total;
+            successCount.textContent = historyStats.success;
+            failureCount.textContent = historyStats.failure;
+        }
+
+        function renderHistoryList() {
+            if (historyData.length === 0) {
+                historyList.innerHTML = '<div class="history-empty">暂无历史记录</div>';
+                return;
+            }
+            
+            const historyHTML = historyData.map(item => {
+                const statusText = {
+                    success: '✅ 成功',
+                    error: '❌ 失败',
+                    timeout: '⏰ 超时'
+                }[item.status];
+                
+                return `
+                    <div class="history-item ${item.status}">
+                        <div class="history-item-header">
+                            <div class="history-item-accounts">
+                                ${item.originAccount} → ${item.targetAccount}
+                            </div>
+                            <div class="history-item-time">${item.displayTime}</div>
+                        </div>
+                        <div class="history-item-status ${item.status}">${statusText}</div>
+                    </div>
+                `;
+            }).join('');
+            
+            historyList.innerHTML = historyHTML;
+        }
+
+        function clearHistory() {
+            if (confirm('确定要清空所有历史记录吗？')) {
+                historyData = [];
+                updateHistoryStats();
+                renderHistoryList();
+            }
+        }
+
+        function formatTime(date) {
+            const now = new Date();
+            const diff = now - date;
+            
+            if (date.toDateString() === now.toDateString()) {
+                return date.toLocaleTimeString('zh-CN', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+            }
+            
+            const yesterday = new Date(now);
+            yesterday.setDate(yesterday.getDate() - 1);
+            if (date.toDateString() === yesterday.toDateString()) {
+                return '昨天 ' + date.toLocaleTimeString('zh-CN', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+            }
+            
+            return date.toLocaleDateString('zh-CN', { 
+                month: '2-digit', 
+                day: '2-digit' 
+            });
+        }
+
+        // ==================== 历史记录侧边栏控制函数 ====================
+        function openHistorySidebar() {
+            historySidebar.classList.add('open');
+            container.classList.add('sidebar-open');
+        }
+
+        function closeHistorySidebar() {
+            historySidebar.classList.remove('open');
+            container.classList.remove('sidebar-open');
+        }
+
+        // ==================== 表单验证和提交处理 ====================
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const originAccount = originAccountInput.value.trim();
+            const targetAccount = targetAccountInput.value.trim();
+            
+            if (!originAccount || !targetAccount) {
+                showStatus('error', '❌ 请填写完整的账号信息');
+                setTimeout(() => hideStatus(), 3000);
+                return;
+            }
+            
+            if (originAccount === targetAccount) {
+                showStatus('error', '❌ 源账号和目标账号不能相同');
+                setTimeout(() => hideStatus(), 3000);
+                return;
+            }
+            
+            setButtonState(true);
+            showStatus('waiting', '<span class="loading-spinner"></span>正在复制笔记，请稍候...');
+            
+            currentTimeout = setTimeout(handleTimeout, TIMEOUT_DURATION);
+            
+            sendToPython(originAccount, targetAccount);
+            checkPythonResponse();
+        });
+
+        // ==================== 事件监听器设置 ====================
+        historyToggle.addEventListener('click', openHistorySidebar);
+        historyClose.addEventListener('click', closeHistorySidebar);
+        historyClear.addEventListener('click', clearHistory);
+
+        document.addEventListener('click', function(e) {
+            if (historySidebar.classList.contains('open') && 
+                !historySidebar.contains(e.target) && 
+                !historyToggle.contains(e.target)) {
+                closeHistorySidebar();
+            }
+        });
+
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('focus', function() {
+                this.parentElement.style.transform = 'translateY(-1px)';
+            });
+            
+            input.addEventListener('blur', function() {
+                this.parentElement.style.transform = 'translateY(0)';
+            });
+        });
+
+        // ==================== 页面初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            container.style.animation = 'fadeInUp 0.6s ease-out';
+            
+            submitBtn.addEventListener('click', function(e) {
+                if (this.disabled) return;
+                
+                const ripple = document.createElement('span');
+                const rect = this.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height);
+                const x = e.clientX - rect.left - size / 2;
+                const y = e.clientY - rect.top - size / 2;
+                
+                ripple.style.cssText = `
+                    position: absolute;
+                    width: ${size}px;
+                    height: ${size}px;
+                    left: ${x}px;
+                    top: ${y}px;
+                    background: rgba(255, 255, 255, 0.3);
+                    border-radius: 50%;
+                    transform: scale(0);
+                    animation: ripple 0.6s ease-out;
+                    pointer-events: none;
+                `;
+                
+                this.appendChild(ripple);
+                
+                setTimeout(() => {
+                    ripple.remove();
+                }, 600);
+            });
+            
+            // 初始化历史记录
+            renderHistoryList();
+            updateHistoryStats();
+        });
+    </script>
+</body>
+</html>
