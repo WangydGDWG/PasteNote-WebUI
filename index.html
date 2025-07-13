@@ -28,7 +28,7 @@
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             padding: 40px;
             width: 100%;
-            max-width: 550px;
+            max-width: 850px; /* 增加容器宽度 */
             position: relative;
             overflow: hidden;
             transition: transform 0.3s ease;
@@ -107,6 +107,8 @@
             padding: 24px;
             margin-bottom: 24px;
             border: 1px solid #e2e8f0;
+            flex: 1; /* 让两个section等宽 */
+            min-width: 0; /* 防止内容溢出 */
         }
 
         .account-section h3 {
@@ -251,6 +253,44 @@
 
         .button-loading {
             opacity: 0.8;
+        }
+
+        /* 横向布局样式 */
+        .account-sections {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .transfer-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 50px;
+        }
+
+        .transfer-icon svg {
+            width: 36px;
+            height: 36px;
+            fill: #667eea;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        @media (max-width: 768px) {
+            .account-sections {
+                flex-direction: column;
+            }
+            
+            .transfer-icon {
+                transform: rotate(90deg);
+                padding: 15px 0;
+            }
         }
 
         @media (max-width: 640px) {
@@ -496,36 +536,44 @@
         </div>
         
         <form id="copyForm">
-            <div class="account-section">
-                <h3>源账号信息</h3>
-                <div class="form-group">
-                    <label for="originAccount">用户名</label>
-                    <div class="input-wrapper">
-                        <input type="text" id="originAccount" name="originAccount" placeholder="请输入源账号用户名" required>
+            <div class="account-sections">
+                <div class="account-section">
+                    <h3>源账号信息</h3>
+                    <div class="form-group">
+                        <label for="originAccount">用户名</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="originAccount" name="originAccount" placeholder="请输入源账号用户名" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="originPassword">密码</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="originPassword" name="originPassword" placeholder="请输入源账号密码" required>
+                            <button type="button" class="password-toggle" onclick="togglePassword('originPassword')">👁️</button>
+                        </div>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label for="originPassword">密码</label>
-                    <div class="input-wrapper">
-                        <input type="password" id="originPassword" name="originPassword" placeholder="请输入源账号密码" required>
-                        <button type="button" class="password-toggle" onclick="togglePassword('originPassword')">👁️</button>
-                    </div>
-                </div>
-            </div>
 
-            <div class="account-section">
-                <h3>目标账号信息</h3>
-                <div class="form-group">
-                    <label for="targetAccount">用户名</label>
-                    <div class="input-wrapper">
-                        <input type="text" id="targetAccount" name="targetAccount" placeholder="请输入目标账号用户名" required>
-                    </div>
+                <div class="transfer-icon">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M20 17H4V7h6V5H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-6h-2v6zm-8-8l4 4h-3v6h-2v-6H8l4-4zm8-4h-2V1h-2v4h-2l4 4 4-4z"/>
+                    </svg>
                 </div>
-                <div class="form-group">
-                    <label for="targetPassword">密码</label>
-                    <div class="input-wrapper">
-                        <input type="password" id="targetPassword" name="targetPassword" placeholder="请输入目标账号密码" required>
-                        <button type="button" class="password-toggle" onclick="togglePassword('targetPassword')">👁️</button>
+
+                <div class="account-section">
+                    <h3>目标账号信息</h3>
+                    <div class="form-group">
+                        <label for="targetAccount">用户名</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="targetAccount" name="targetAccount" placeholder="请输入目标账号用户名" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="targetPassword">密码</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="targetPassword" name="targetPassword" placeholder="请输入目标账号密码" required>
+                            <button type="button" class="password-toggle" onclick="togglePassword('targetPassword')">👁️</button>
+                        </div>
                     </div>
                 </div>
             </div>
